@@ -1,8 +1,9 @@
 
 require 'io'
-require 'filestream'
+require 'math'
 require 'vector'
 require 'parser'
+require 'filestream'
 require 'stringbuilder'
 
 local error_t = @enum{
@@ -34,7 +35,7 @@ function line_content:__tostring()
    return builder:promote()
 end
 
---Format a vector of lines to show the whole content of the cvs
+--Format a vector of lines to show the whole content of the csv
 local function print_csv(csv: vector(line_content)) --Note: semms to be bugged
    local builder: stringbuilder 
    builder:write("[\n")
@@ -52,7 +53,6 @@ local function decode_input(input: pure_file): (vector(line_content), error_t)
 		return ret, error_t.format
 	end
 	local colum_header = input[0]
-	print(colum_header)
 	if #colum_header < 4 then
 		io.stderr:write("Error, not enoughth columns in input file.\n")
 		return ret, error_t.format
@@ -102,10 +102,11 @@ local function format_field(field: line_content): string
    builder:write("_SIZE   ")
    builder:write(string.format("%i", field.size))
    builder:write("\n\n")
+   return builder:promote()
 end
 
 local macro_function_templates <comptime> = [[
-//                       Macro used to manipulate fields                      //
+// --------------------- Macro used to manipulate fields -------------------- //
 
 #define SIZE_MASK(field_name) \
 	( ( 1 << (field_name ## _SIZE)) - 1 )
@@ -128,11 +129,56 @@ local macro_function_templates <comptime> = [[
 
 ]]
 
+local file_start_template <comptime> = [[
+// -------------------- User-defined functions to edit registers ------------ //
+
+// Replace here with a function _register_read(addr) that reads the
+// register at addres `addr`
+
+// Replace here with a function _register_write(addr, data) that write `data`
+// to the register at addres `addr`
+
+
+// -------------------------- Info about all the fields --------------------- //
+
+]]
+
+
+--This functions takes as input a string that should be the content of a C
+--header file and add include-guards to it
+local function add_include_guard(header: string): string
+	math.randomseed()
+	local guard_macro = string.format("__GENERATED_HEADER_%X__", math.random(0, 0xFFFFFFFF))
+	local builder: stringbuilder 
+	builder:write("#ifndef ")
+	builder:write(guard_macro)
+	builder:write("\n")
+	builder:write("#define ")
+	builder:write(guard_macro)
+	builder:write("\n\n")
+	builder:write(header)
+	builder:write("\n#endif\n\n")
+	return builder:promote()
+end
+
+--This function taakes a vector of lines representing the data in the
+--csv file and return the content of the generated header file
+local function make_header(csv: vector(line_content)): string
+	local builder: stringbuilder
+	builder:write(file_start_template)
+	for i=0,<#csv do
+		builder:write(format_field(csv[i]))
+	end
+	builder:write(macro_function_templates)
+	local raw_header = builder:promote()
+	return add_include_guard(raw_header)
+end
+
 local test_f = io.open("../MAX30009_regs.csv")
 local pure_csv = purify_file(test_f)
 print(#pure_csv)
 local ccccc = decode_input(pure_csv)
-for i=1,<#ccccc do
-	print(ccccc[i])
-end
+print(#ccccc)
+local header = make_header(ccccc)
+print(header)
 
