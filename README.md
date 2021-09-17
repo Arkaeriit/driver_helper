@@ -37,6 +37,14 @@ Furthermore, the function-like macro `FIELD_READ(field_name)` and `FIELD_WRITE(f
 The usage of the tool is the following: 
 
 ```
-xxx <input file> <output file>
+driver-helper <input file> <output file>
 ```
+
+## Compilation and installation
+
+Driver Helper is written in [Nelua](https://nelua.io). But as everyone might not have the Nelua compiler install, I included the generated C file in this repository.
+
+Running `make` will compile the C file. To compile from the nelua file, run `make full_compilation`.
+
+You can then install it with `make install` or uninstall it with `make uninstall`.
 
