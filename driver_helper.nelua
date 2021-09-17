@@ -1,0 +1,92 @@
+
+require 'io'
+require 'filestream'
+require 'vector'
+require 'parser'
+require 'stringbuilder'
+
+local error_t = @enum{
+	OK = 0,
+	format = 1,
+	file_io = 2,
+	content = 3,
+}
+
+local line_content = @record{
+	name: string,
+	address: integer,
+	offset: integer,
+	size: integer,
+}
+
+function line_content:__tostring()
+   local builder: stringbuilder 
+   builder:write("{ name = ")
+   builder:write(self.name)
+   builder:write(", address = ")
+   builder:write(self.address)
+   builder:write(", offset = ")
+   builder:write(self.offset)
+   builder:write(", size = ")
+   builder:write(self.size)
+   builder:write(" }\n")
+   return builder:promote()
+end
+
+local function print_csv(csv: vector(line_content)) --Note: semms to be bugged
+   local builder: stringbuilder 
+   builder:write("[\n")
+   for i=0,<#csv do
+	   builder:write(csv[i])
+	   builder:write("\n")
+   end
+   builder:write("]\n")
+end
+
+local function decode_input(input: pure_file): (vector(line_content), error_t)
+	local ret: vector(line_content)
+	if #input == 0 then
+		io.stderr:write("Error, empty input file.\n")
+		return ret, error_t.format
+	end
+	local colum_header = input[0]
+	print(colum_header)
+	if #colum_header < 4 then
+		io.stderr:write("Error, not enoughth columns in input file.\n")
+		return ret, error_t.format
+	end
+	local name_col, addr_col, off_col, size_col: integer --Note, the column indexing will start as 1 to keep 0 as an error-detecting value
+	for i=0,<4 do
+		if colum_header[i] == "Name" then
+			name_col = i+1
+		elseif colum_header[i] == "Address" then
+			addr_col = i+1
+		elseif colum_header[i] == "Offset" then
+			off_col = i+1
+		elseif colum_header[i] == "Size" then
+			size_col = i+1
+		end
+	end
+	if name_col == 0 or addr_col == 0 or size_col == 0 or off_col == 0 then return ret, error_t.format end
+	for i=1,<#input do
+		local curr_line = input[i]
+		if #curr_line == 0 then continue end
+		if #curr_line < 4 then return ret, error_t.format end
+		local new_line: line_content
+		new_line.name = curr_line[name_col-1]
+		new_line.address = tointeger(curr_line[addr_col-1], 16)
+		new_line.offset = tointeger(curr_line[off_col-1], 10)
+		new_line.size = tointeger(curr_line[size_col-1], 10)
+		ret:push(new_line)
+	end
+	return ret, error_t.OK
+end
+
+local test_f = io.open("../MAX30009_regs.csv")
+local pure_csv = purify_file(test_f)
+print(#pure_csv)
+local ccccc = decode_input(pure_csv)
+for i=1,<#ccccc do
+	print(ccccc[i])
+end
+

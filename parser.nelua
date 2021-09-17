@@ -103,7 +103,7 @@ end
 --tells if a character is whitespace or a comma
 local function is_whitespace_or_coma(s: string): boolean
     local c = s:byte()
-    return (not (c > 0x20 and c < 0x7F) and c ~= ",")
+    return (not (c > 0x20 and c < 0x7F)) or c == string.byte(",")
 end
 
 --Transforms a line in a pure_line
