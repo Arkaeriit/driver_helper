@@ -1,5 +1,7 @@
 
 require 'io'
+require 'os'
+require 'arg'
 require 'math'
 require 'vector'
 require 'parser'
@@ -11,6 +13,7 @@ local error_t = @enum{
 	format = 1,
 	file_io = 2,
 	content = 3,
+	arguments = 4,
 }
 
 --This is a data type to store the content of a line of csv file
@@ -69,11 +72,17 @@ local function decode_input(input: pure_file): (vector(line_content), error_t)
 			size_col = i+1
 		end
 	end
-	if name_col == 0 or addr_col == 0 or size_col == 0 or off_col == 0 then return ret, error_t.format end
+	if name_col == 0 or addr_col == 0 or size_col == 0 or off_col == 0 then
+		io.stderr:write("Error, missing correct title for at least one of the columns.")
+		return ret, error_t.format
+	end
 	for i=1,<#input do
 		local curr_line = input[i]
 		if #curr_line == 0 then continue end
-		if #curr_line < 4 then return ret, error_t.format end
+		if #curr_line < 4 then
+			io.stderr:write("Error, missing column in line ", tostring(i+1), ".\n")
+			return ret, error_t.format
+		end
 		local new_line: line_content
 		new_line.name = curr_line[name_col-1]
 		new_line.address = tointeger(curr_line[addr_col-1], 16)
@@ -108,23 +117,25 @@ end
 local macro_function_templates <comptime> = [[
 // --------------------- Macro used to manipulate fields -------------------- //
 
-#define SIZE_MASK(field_name) \
-	( ( 1 << (field_name ## _SIZE)) - 1 )
+#define SIZE_MASK(field_name)             \
+	( ( 1 << (field_name ## _SIZE)) - 1 )  
 
-#define FIELD_READ(field_name) \
-	(
-		(_register_read(field_name ## _ADDR)
-		>> (field_name ## _OFFSET))
-		& SIZE_MASK(field_name)
-	)
+#define FIELD_READ(field_name)               \
+	(                                        \
+		(_register_read(field_name ## _ADDR) \
+		>> (field_name ## _OFFSET))          \
+		& SIZE_MASK(field_name)              \
+	)                                         
 
-#define POS_MASK(field_name) \
-	( ~(SIZE_MASK(field_name) << field_name ## _OFFSET)  )
+#define POS_MASK(field_name)                               \
+	( ~(SIZE_MASK(field_name) << field_name ## _OFFSET)  )  
 
-#define FIELD_WRITE(field_name, data) \
-	_register_write(field_name ## _ADDR, 
-		(POS_MASK(field_name) & _register_read(field_name ## _ADDR)) | //All the other fields of the register
-		((data & SIZE_MASK(field_name)) << field_name ## _OFFSET))     //The data masked and offset to the correct field
+#define FIELD_WRITE(field_name, data)                                  \
+	_register_write(field_name ## _ADDR,                               \
+		/* All the other fields of the register */                     \
+		(POS_MASK(field_name) & _register_read(field_name ## _ADDR)) | \
+		/* The data masked and offset to the correct field */          \
+		((data & SIZE_MASK(field_name)) << field_name ## _OFFSET))      
 
 
 ]]
@@ -174,11 +185,46 @@ local function make_header(csv: vector(line_content)): string
 	return add_include_guard(raw_header)
 end
 
-local test_f = io.open("../MAX30009_regs.csv")
-local pure_csv = purify_file(test_f)
-print(#pure_csv)
-local ccccc = decode_input(pure_csv)
-print(#ccccc)
-local header = make_header(ccccc)
-print(header)
+local help_message <comptime> = "coucou"
+
+local function main(): integer
+	--Reading args
+	if #arg == 0 then 
+		print(help_message)
+		return 0
+	end
+	if (arg[1] == "--help" or arg[1] == "-help" or arg[1] == "-h" or arg[1] == "help") and #arg == 1 then
+		print(help_message)
+		return 0
+	end
+	if #arg ~= 2 then
+		io.stderr:write("Error, invalid arguments.\n")
+		io.stderr:write(help_message)
+		io.stderr:write("\n")
+		return error_t.arguments
+	end
+	--Reading input
+	local f_in, err_msg, err_code = io.open(arg[1], "r")
+	if err_code ~= 0 then
+		io.stderr:write(err_msg, "\n")
+		return err_code
+	end
+	local pure = purify_file(f_in)
+	local decoded, err_code = decode_input(pure)
+	if err_code ~= 0 then
+		return err_code
+	end
+	local header = make_header(decoded)
+	--Writing output
+	local f_out, err_msg, err_code = io.open(arg[2], "w")
+	if err_code ~= 0 then
+		io.stderr:write(err_msg, "\n")
+		return err_code
+	end
+	f_out:write(header)
+	f_out:close()
+	return 0
+end
+
+os.exit(main())
 
