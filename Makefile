@@ -4,7 +4,7 @@ all: driver-helper
 INSTALL_DIR := /usr/local/bin
 
 driver-helper: objsrc/driver_helper.c
-	gcc $< -o $@
+	gcc $< -Os -fdata-sections -fdata-sections -Wl,--gc-sections -o $@
 
 objsrc/driver_helper.c: | driver_helper.nelua
 	mkdir -p objsrc
