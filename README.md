@@ -48,7 +48,3 @@ Running `make` will compile the C file. To compile from the nelua file, run `mak
 
 You can then install it with `make install` or uninstall it with `make uninstall`.
 
-## Roadmap
-
-* Maybe the field-manipulation macros should be more code-size efficient.
-

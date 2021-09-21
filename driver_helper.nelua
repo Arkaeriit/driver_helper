@@ -57,7 +57,7 @@ local function decode_input(input: pure_file): (vector(line_content), error_t)
 	end
 	local colum_header = input[0]
 	if #colum_header < 4 then
-		io.stderr:write("Error, not enoughth columns in input file.\n")
+		io.stderr:write("Error, not enought columns in input file.\n")
 		return ret, error_t.format
 	end
 	local name_col, addr_col, off_col, size_col: integer --Note, the column indexing will start as 1 to keep 0 as an error-detecting value
@@ -117,37 +117,51 @@ end
 local macro_function_templates <comptime> = [[
 // --------------------- Macro used to manipulate fields -------------------- //
 
-#define SIZE_MASK(field_name)             \
-	( ( 1 << (field_name ## _SIZE)) - 1 )  
+static _driver_helper_t _driver_helper_size_mask(uint8_t size) {
+    return (1 << size) - 1;
+}
 
-#define FIELD_READ(field_name)               \
-	(                                        \
-		(_register_read(field_name ## _ADDR) \
-		>> (field_name ## _OFFSET))          \
-		& SIZE_MASK(field_name)              \
-	)                                         
+static _driver_helper_t _driver_helper_field_read(_driver_helper_t addr, uint8_t size, uint8_t offset) {
+    return (_register_read(addr) >> offset) & _driver_helper_size_mask(size);
+}
 
-#define POS_MASK(field_name)                               \
-	( ~(SIZE_MASK(field_name) << field_name ## _OFFSET)  )  
+#define FIELD_READ(field_name) \
+    _driver_helper_field_read(field_name ## _ADDR, field_name ## _SIZE, field_name ## _OFFSET)
 
-#define FIELD_WRITE(field_name, data)                                  \
-	_register_write(field_name ## _ADDR,                               \
-		/* All the other fields of the register */                     \
-		(POS_MASK(field_name) & _register_read(field_name ## _ADDR)) | \
-		/* The data masked and offset to the correct field */          \
-		((data & SIZE_MASK(field_name)) << field_name ## _OFFSET))      
+static _driver_helper_t _driver_helper_pos_mask(uint8_t size, uint8_t offset) {
+    return ~(_driver_helper_size_mask(size) << offset);
+}
 
+static void _driver_helper_field_write(_driver_helper_t addr, uint8_t size, uint8_t offset, _driver_helper_t data) {
+    _driver_helper_t rest_of_the_reg = _register_read(addr) & _driver_helper_pos_mask(size, offset);
+    _driver_helper_t updated_reg = rest_of_the_reg | (data << offset);
+    _register_write(addr, updated_reg);
+}
+
+#define FIELD_WRITE(field_name, data) \
+    _driver_helper_field_write(field_name ## _ADDR, field_name ## _SIZE, field_name ## _OFFSET, data)
 
 ]]
 
 local file_start_template <comptime> = [[
 // -------------------- User-defined functions to edit registers ------------ //
 
+#include "stdint.h"
+
+// Replace here with the type used to represent the content of the registers
+// and their address.
+typedef uint8_t _driver_helper_t;
+
 // Replace here with a function _register_read(addr) that reads the
-// register at addres `addr`
+// register at address `addr`
+static _driver_helper_t _register_read(_driver_helper_t addr) {
+    return 0;
+}
 
 // Replace here with a function _register_write(addr, data) that write `data`
-// to the register at addres `addr`
+// to the register at address `addr`
+static void _register_write(_driver_helper_t addr, _driver_helper_t data) {
+}
 
 
 // -------------------------- Info about all the fields --------------------- //
@@ -172,7 +186,7 @@ local function add_include_guard(header: string): string
 	return builder:promote()
 end
 
---This function taakes a vector of lines representing the data in the
+--This function takes a vector of lines representing the data in the
 --csv file and return the content of the generated header file
 local function make_header(csv: vector(line_content)): string
 	local builder: stringbuilder
