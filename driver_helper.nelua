@@ -62,13 +62,13 @@ local function decode_input(input: pure_file): (vector(line_content), error_t)
 	end
 	local name_col, addr_col, off_col, size_col: integer --Note, the column indexing will start as 1 to keep 0 as an error-detecting value
 	for i=0,<4 do
-		if colum_header[i] == "Name" then
+		if string.lower(colum_header[i]) == "name" then
 			name_col = i+1
-		elseif colum_header[i] == "Address" then
+		elseif string.lower(colum_header[i]) == "address" then
 			addr_col = i+1
-		elseif colum_header[i] == "Offset" then
+		elseif string.lower(colum_header[i]) == "offset" then
 			off_col = i+1
-		elseif colum_header[i] == "Size" then
+		elseif string.lower(colum_header[i]) == "size" then
 			size_col = i+1
 		end
 	end
