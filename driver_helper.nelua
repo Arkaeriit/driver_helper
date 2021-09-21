@@ -9,19 +9,19 @@ require 'filestream'
 require 'stringbuilder'
 
 local error_t = @enum{
-	OK = 0,
-	format = 1,
-	file_io = 2,
-	content = 3,
-	arguments = 4,
+    OK = 0,
+    format = 1,
+    file_io = 2,
+    content = 3,
+    arguments = 4,
 }
 
 --This is a data type to store the content of a line of csv file
 local line_content = @record{
-	name: string,
-	address: integer,
-	offset: integer,
-	size: integer,
+    name: string,
+    address: integer,
+    offset: integer,
+    size: integer,
 }
 
 function line_content:__tostring()
@@ -43,54 +43,54 @@ local function print_csv(csv: vector(line_content)) --Note: semms to be bugged
    local builder: stringbuilder 
    builder:write("[\n")
    for i=0,<#csv do
-	   builder:write(csv[i])
+       builder:write(csv[i])
    end
    builder:write("]\n")
 end
 
 --Decode a pure_file into a list of line_content
 local function decode_input(input: pure_file): (vector(line_content), error_t)
-	local ret: vector(line_content)
-	if #input == 0 then
-		io.stderr:write("Error, empty input file.\n")
-		return ret, error_t.format
-	end
-	local colum_header = input[0]
-	if #colum_header < 4 then
-		io.stderr:write("Error, not enought columns in input file.\n")
-		return ret, error_t.format
-	end
-	local name_col, addr_col, off_col, size_col: integer --Note, the column indexing will start as 1 to keep 0 as an error-detecting value
-	for i=0,<4 do
-		if string.lower(colum_header[i]) == "name" then
-			name_col = i+1
-		elseif string.lower(colum_header[i]) == "address" then
-			addr_col = i+1
-		elseif string.lower(colum_header[i]) == "offset" then
-			off_col = i+1
-		elseif string.lower(colum_header[i]) == "size" then
-			size_col = i+1
-		end
-	end
-	if name_col == 0 or addr_col == 0 or size_col == 0 or off_col == 0 then
-		io.stderr:write("Error, missing correct title for at least one of the columns.")
-		return ret, error_t.format
-	end
-	for i=1,<#input do
-		local curr_line = input[i]
-		if #curr_line == 0 then continue end
-		if #curr_line < 4 then
-			io.stderr:write("Error, missing column in line ", tostring(i+1), ".\n")
-			return ret, error_t.format
-		end
-		local new_line: line_content
-		new_line.name = curr_line[name_col-1]
-		new_line.address = tointeger(curr_line[addr_col-1], 16)
-		new_line.offset = tointeger(curr_line[off_col-1], 10)
-		new_line.size = tointeger(curr_line[size_col-1], 10)
-		ret:push(new_line)
-	end
-	return ret, error_t.OK
+    local ret: vector(line_content)
+    if #input == 0 then
+        io.stderr:write("Error, empty input file.\n")
+        return ret, error_t.format
+    end
+    local colum_header = input[0]
+    if #colum_header < 4 then
+        io.stderr:write("Error, not enought columns in input file.\n")
+        return ret, error_t.format
+    end
+    local name_col, addr_col, off_col, size_col: integer --Note, the column indexing will start as 1 to keep 0 as an error-detecting value
+    for i=0,<4 do
+        if string.lower(colum_header[i]) == "name" then
+            name_col = i+1
+        elseif string.lower(colum_header[i]) == "address" then
+            addr_col = i+1
+        elseif string.lower(colum_header[i]) == "offset" then
+            off_col = i+1
+        elseif string.lower(colum_header[i]) == "size" then
+            size_col = i+1
+        end
+    end
+    if name_col == 0 or addr_col == 0 or size_col == 0 or off_col == 0 then
+        io.stderr:write("Error, missing correct title for at least one of the columns.")
+        return ret, error_t.format
+    end
+    for i=1,<#input do
+        local curr_line = input[i]
+        if #curr_line == 0 then continue end
+        if #curr_line < 4 then
+            io.stderr:write("Error, missing column in line ", tostring(i+1), ".\n")
+            return ret, error_t.format
+        end
+        local new_line: line_content
+        new_line.name = curr_line[name_col-1]
+        new_line.address = tointeger(curr_line[addr_col-1], 16)
+        new_line.offset = tointeger(curr_line[off_col-1], 10)
+        new_line.size = tointeger(curr_line[size_col-1], 10)
+        ret:push(new_line)
+    end
+    return ret, error_t.OK
 end
 
 --Generates the macros used to manipulate a field
@@ -172,72 +172,72 @@ static void _register_write(_driver_helper_t addr, _driver_helper_t data) {
 --This functions takes as input a string that should be the content of a C
 --header file and add include-guards to it
 local function add_include_guard(header: string): string
-	math.randomseed()
-	local guard_macro = string.format("__GENERATED_HEADER_%X__", math.random(0, 0xFFFFFFFF))
-	local builder: stringbuilder 
-	builder:write("#ifndef ")
-	builder:write(guard_macro)
-	builder:write("\n")
-	builder:write("#define ")
-	builder:write(guard_macro)
-	builder:write("\n\n")
-	builder:write(header)
-	builder:write("\n#endif\n\n")
-	return builder:promote()
+    math.randomseed()
+    local guard_macro = string.format("__GENERATED_HEADER_%X__", math.random(0, 0xFFFFFFFF))
+    local builder: stringbuilder 
+    builder:write("#ifndef ")
+    builder:write(guard_macro)
+    builder:write("\n")
+    builder:write("#define ")
+    builder:write(guard_macro)
+    builder:write("\n\n")
+    builder:write(header)
+    builder:write("\n#endif\n\n")
+    return builder:promote()
 end
 
 --This function takes a vector of lines representing the data in the
 --csv file and return the content of the generated header file
 local function make_header(csv: vector(line_content)): string
-	local builder: stringbuilder
-	builder:write(file_start_template)
-	for i=0,<#csv do
-		builder:write(format_field(csv[i]))
-	end
-	builder:write(macro_function_templates)
-	local raw_header = builder:promote()
-	return add_include_guard(raw_header)
+    local builder: stringbuilder
+    builder:write(file_start_template)
+    for i=0,<#csv do
+        builder:write(format_field(csv[i]))
+    end
+    builder:write(macro_function_templates)
+    local raw_header = builder:promote()
+    return add_include_guard(raw_header)
 end
 
 local help_message <comptime> = "coucou"
 
 local function main(): integer
-	--Reading args
-	if #arg == 0 then 
-		print(help_message)
-		return 0
-	end
-	if (arg[1] == "--help" or arg[1] == "-help" or arg[1] == "-h" or arg[1] == "help") and #arg == 1 then
-		print(help_message)
-		return 0
-	end
-	if #arg ~= 2 then
-		io.stderr:write("Error, invalid arguments.\n")
-		io.stderr:write(help_message)
-		io.stderr:write("\n")
-		return error_t.arguments
-	end
-	--Reading input
-	local f_in, err_msg, err_code = io.open(arg[1], "r")
-	if err_code ~= 0 then
-		io.stderr:write(err_msg, "\n")
-		return err_code
-	end
-	local pure = purify_file(f_in)
-	local decoded, err_code = decode_input(pure)
-	if err_code ~= 0 then
-		return err_code
-	end
-	local header = make_header(decoded)
-	--Writing output
-	local f_out, err_msg, err_code = io.open(arg[2], "w")
-	if err_code ~= 0 then
-		io.stderr:write(err_msg, "\n")
-		return err_code
-	end
-	f_out:write(header)
-	f_out:close()
-	return 0
+    --Reading args
+    if #arg == 0 then 
+        print(help_message)
+        return 0
+    end
+    if (arg[1] == "--help" or arg[1] == "-help" or arg[1] == "-h" or arg[1] == "help") and #arg == 1 then
+        print(help_message)
+        return 0
+    end
+    if #arg ~= 2 then
+        io.stderr:write("Error, invalid arguments.\n")
+        io.stderr:write(help_message)
+        io.stderr:write("\n")
+        return error_t.arguments
+    end
+    --Reading input
+    local f_in, err_msg, err_code = io.open(arg[1], "r")
+    if err_code ~= 0 then
+        io.stderr:write(err_msg, "\n")
+        return err_code
+    end
+    local pure = purify_file(f_in)
+    local decoded, err_code = decode_input(pure)
+    if err_code ~= 0 then
+        return err_code
+    end
+    local header = make_header(decoded)
+    --Writing output
+    local f_out, err_msg, err_code = io.open(arg[2], "w")
+    if err_code ~= 0 then
+        io.stderr:write(err_msg, "\n")
+        return err_code
+    end
+    f_out:write(header)
+    f_out:close()
+    return 0
 end
 
 os.exit(main())
