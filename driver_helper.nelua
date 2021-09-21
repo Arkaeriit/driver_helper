@@ -141,6 +141,12 @@ static void _driver_helper_field_write(_driver_helper_t addr, uint8_t size, uint
 #define FIELD_WRITE(field_name, data) \
     _driver_helper_field_write(field_name ## _ADDR, field_name ## _SIZE, field_name ## _OFFSET, data)
 
+
+/*-------------------------------------------\
+|  Header file generated with driver-helper  |
+| https://github.com/Arkaeriit/driver_helper |
+\-------------------------------------------*/
+
 ]]
 
 local file_start_template <comptime> = [[
@@ -199,7 +205,16 @@ local function make_header(csv: vector(line_content)): string
     return add_include_guard(raw_header)
 end
 
-local help_message <comptime> = "coucou"
+local help_message <comptime> = [[driver-helper, a tool to help you write drivers for devices.
+
+This tools takes as input a CSV file presenting each fields of each
+registers of the device and generates a C header file with macros
+used to manipulate those fields.
+
+Usage: driver-helper <input CSV> <output header>
+
+More info at https://github.com/Arkaeriit/driver_helper.
+]]
 
 local function main(): integer
     --Reading args
