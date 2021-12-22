@@ -17,6 +17,7 @@ The input file should be a CSV file. Here is an example of possible content:
 | DATA\_INPUT | 1       | 0      | 8    |
 
 There is multiple things to take into account:
+
 * The order of the columns does not matter but their names should be respected and written in the fist line.
 * The address should be written in hexadecimal with no prefix.
 
@@ -24,7 +25,7 @@ There is multiple things to take into account:
 
 The tool will generate a C header file containing macros defining the information in the input file. For example for the `FIFO_FLAG` entry, the following macros will be defined.
 
- ```
+```
 #define FIFO_FLAG_ADDR   0
 #define FIFO_FLAG_OFFSET 0
 #define FIFO_FLAG_SIZE   2
